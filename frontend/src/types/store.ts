@@ -21,22 +21,22 @@ export interface Store {
   _id: string;
   name: string;
   description: string;
-  owner: string; // User ID
-  status: StoreStatus;
-  isActive: boolean;
+  owner: string;
+  logo?: string;
   rating: number;
   totalRatings: number;
   totalSales: number;
   balance: number;
-  logo?: string;
+  isActive: boolean;
+  status: StoreStatus;
+  createdAt: string;
+  updatedAt: string;
   banner?: string;
   address?: string;
   contactEmail?: string;
   contactPhone?: string;
-  socialLinks?: SocialLinks;
-  businessHours?: BusinessHours;
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  socialLinks?: Partial<SocialLinks>;
+  businessHours?: Partial<BusinessHours>;
 }
 
 export interface CreateStoreData {

@@ -6,7 +6,8 @@ import {
   TokenResponse,
   AuthResponse,
 } from "@/types/auth";
-import { User, Store, StoreCreationData } from "@/types/user";
+import { User } from "@/types/user";
+import { Store, CreateStoreData } from "@/types/store";
 import { Product, CreateProductData, UpdateProductData } from "@/types/product";
 import { WishlistItem } from "@/types/wishlist";
 import { CartItem } from "@/types/cart";
@@ -51,7 +52,7 @@ export const userApi = {
       currentPassword,
       newPassword,
     }),
-  becomeSeller: (data: StoreCreationData) =>
+  becomeSeller: (data: CreateStoreData) =>
     axiosInstance.post<{ data: { store: Store }; message: string }>(
       "/users/become-seller",
       data
@@ -77,6 +78,8 @@ export const productsApi = {
     axiosInstance.put<{ data: Product }>(`/products/${id}`, data),
   deleteProduct: (id: string) =>
     axiosInstance.delete<{ message: string }>(`/products/${id}`),
+  submitReview: (productId: string, rating: number, comment: string) =>
+    axiosInstance.post(`/products/${productId}/reviews`, { rating, comment }),
 };
 
 // Wishlist API
@@ -102,12 +105,20 @@ export const cartApi = {
 
 // Store API
 export const storeApi = {
-  getStore: (id: string) => axiosInstance.get<{ data: Store }>(`/store/${id}`),
+  getStore: (id: string) => axiosInstance.get<{ data: Store }>(`/stores/${id}`),
   getMyStore: () => axiosInstance.get<{ data: Store }>("/store/my-store"),
-  updateStore: (data: Partial<Store>) =>
-    axiosInstance.put<{ data: Store }>("/store", data),
-  getStoreProducts: (storeId: string) =>
-    axiosInstance.get<{ data: Product[] }>(`/store/${storeId}/products`),
+  updateStore: (data: FormData) =>
+    axiosInstance.put<{ data: { store: Store } }>("/stores/me", data),
+  getStoreProducts: () =>
+    axiosInstance.get<{ data: Product[] }>("/stores/me/products"),
+  createStore: (data: FormData) =>
+    axiosInstance.post<{ data: { store: Store } }>("/stores", data),
+  createProduct: (data: CreateProductData) =>
+    axiosInstance.post<{ data: Product }>("/stores/me/products", data),
+  updateProduct: (id: string, data: CreateProductData) =>
+    axiosInstance.put<{ data: Product }>(`/stores/me/products/${id}`, data),
+  deleteProduct: (id: string) =>
+    axiosInstance.delete<{ message: string }>(`/stores/me/products/${id}`),
 };
 
 // Orders API

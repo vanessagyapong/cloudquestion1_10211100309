@@ -1,23 +1,17 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
-import Image from "next/image";
-import { FiShoppingCart, FiTrash2, FiLoader } from "react-icons/fi";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import ProductCard from "@/components/ProductCard";
 import { Product } from "@/types/product";
 
-const fadeIn = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-};
-
 export default function WishlistPage() {
-  const { items: wishlistItems, toggleWishlist } = useWishlist();
+  const { wishlist, toggleWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const router = useRouter();
 
   const handleAddToCart = async (productId: string) => {
     try {
@@ -28,106 +22,33 @@ export default function WishlistPage() {
       toast.error("Failed to add to cart");
     }
   };
-
-  const handleRemoveFromWishlist = async (productId: string) => {
-    try {
-      await toggleWishlist(productId);
-      toast.success("Removed from wishlist");
-    } catch (error) {
-      console.error("Error removing from wishlist:", error);
-      toast.error("Failed to remove from wishlist");
-    }
-  };
-
-  if (!wishlistItems) {
-    return (
-      <div className='min-h-screen flex items-center justify-center'>
-        <FiLoader className='h-8 w-8 animate-spin text-[var(--color-primary)]' />
-      </div>
-    );
-  }
+  console.log(wishlist);
 
   return (
-    <div className='main-layout'>
-      <div className='content-container'>
-        <div className='flex items-center justify-between mb-8'>
-          <div>
-            <h1 className='text-3xl font-bold text-[var(--color-text-primary)]'>
-              My Wishlist
-            </h1>
-            <p className='mt-2 text-[var(--color-text-secondary)]'>
-              {wishlistItems.length} items saved
+    <div className='min-h-screen bg-[var(--color-background-secondary)] py-8 pt-24'>
+      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+        <h1 className='text-2xl font-bold text-[var(--color-text-primary)] mb-8'>
+          My Wishlist
+        </h1>
+
+        {wishlist.length === 0 ? (
+          <div className='text-center py-12'>
+            <p className='text-[var(--color-text-secondary)]'>
+              Your wishlist is empty.
             </p>
           </div>
-        </div>
-
-        {wishlistItems.length > 0 ? (
-          <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
-            {(wishlistItems as Product[]).map((product) => (
-              <motion.div
-                key={product._id}
-                className='card overflow-hidden'
-                initial={fadeIn.initial}
-                animate={fadeIn.animate}
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className='relative aspect-square'>
-                  <Image
-                    src={product.images[0]}
-                    alt={product.name}
-                    fill
-                    className='object-scale-down'
-                  />
-                </div>
-                <div className='p-4'>
-                  <h3 className='text-lg font-medium text-[var(--color-text-primary)] mb-2'>
-                    {product.name}
-                  </h3>
-                  <p className='text-[var(--color-text-secondary)] text-sm mb-4 line-clamp-2'>
-                    {product.description}
-                  </p>
-                  <div className='flex items-center justify-between'>
-                    <span className='text-lg font-bold text-[var(--color-text-primary)]'>
-                      ${product.price.toFixed(2)}
-                    </span>
-                    <div className='flex space-x-2'>
-                      <button
-                        onClick={() => handleRemoveFromWishlist(product._id)}
-                        className='btn-outline-danger p-2'
-                      >
-                        <FiTrash2 className='h-4 w-4' />
-                      </button>
-                      <button
-                        onClick={() => handleAddToCart(product._id)}
-                        className='btn-primary p-2'
-                      >
-                        <FiShoppingCart className='h-4 w-4' />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
         ) : (
-          <div className='text-center py-12'>
-            <div className='max-w-md mx-auto'>
-              <h2 className='text-xl font-semibold text-[var(--color-text-primary)] mb-2'>
-                Your wishlist is empty
-              </h2>
-              <p className='text-[var(--color-text-secondary)] mb-6'>
-                Save items you like by clicking the heart icon on products
-              </p>
-              <motion.a
-                href='/store'
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className='btn-primary inline-flex items-center'
-              >
-                <FiShoppingCart className='mr-2 h-5 w-5' />
-                Start Shopping
-              </motion.a>
-            </div>
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
+            {wishlist.map((product) => (
+              <ProductCard
+                key={product?._id}
+                product={product as unknown as Product}
+                onAddToCart={() => handleAddToCart(product?._id)}
+                onToggleWishlist={() => toggleWishlist(product?._id)}
+                isInWishlist={true}
+                onClick={() => router.push(`/productDetails/${product?._id}`)}
+              />
+            ))}
           </div>
         )}
       </div>

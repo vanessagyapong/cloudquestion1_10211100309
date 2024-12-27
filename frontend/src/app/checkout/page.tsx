@@ -39,62 +39,71 @@ interface PaymentDetails {
   cvv: string;
 }
 
+const initialShippingDetails: ShippingDetails = {
+  fullName: "",
+  address: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  phone: "",
+};
+
+const initialPaymentDetails: PaymentDetails = {
+  cardNumber: "",
+  cardHolder: "",
+  expiryDate: "",
+  cvv: "",
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items: cartItems, clearCart } = useCart();
+  const { items: cartItems = [], clearCart } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [shippingDetails, setShippingDetails] = useState<ShippingDetails>({
+    ...initialShippingDetails,
     fullName: user?.name || "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    phone: "",
   });
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
-    cardNumber: "",
-    cardHolder: "",
-    expiryDate: "",
-    cvv: "",
-  });
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>(
+    initialPaymentDetails
+  );
 
   const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
     0
   );
-  const shippingCost = 10.0; // Fixed shipping cost
-  const tax = subtotal * 0.1; // 10% tax
+  const shippingCost = 10.0;
+  const tax = subtotal * 0.1;
   const total = subtotal + shippingCost + tax;
 
-  const handleShippingSubmit = (e: React.FormEvent) => {
+  const handleShippingSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStep(2);
   };
 
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePaymentSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStep(3);
   };
 
   const handlePlaceOrder = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       // TODO: Implement order creation API call
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulated API call
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       await clearCart();
       toast.success("Order placed successfully!");
-      router.push("/profile"); // Redirect to profile/orders page
+      router.push("/profile");
     } catch (error) {
       console.error("Error placing order:", error);
-      toast.error("Failed to place order");
+      toast.error("Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCardNumber = (value: string) => {
+  const formatCardNumber = (value: string): string => {
     const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
     const matches = v.match(/\d{4,16}/g);
     const match = (matches && matches[0]) || "";
@@ -104,14 +113,10 @@ export default function CheckoutPage() {
       parts.push(match.substring(i, i + 4));
     }
 
-    if (parts.length) {
-      return parts.join(" ");
-    } else {
-      return value;
-    }
+    return parts.length ? parts.join(" ") : value;
   };
 
-  const formatExpiryDate = (value: string) => {
+  const formatExpiryDate = (value: string): string => {
     const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
     if (v.length >= 2) {
       return v.slice(0, 2) + "/" + v.slice(2, 4);
@@ -119,13 +124,14 @@ export default function CheckoutPage() {
     return v;
   };
 
-  if (cartItems.length === 0) {
+  // Empty cart state
+  if (!cartItems || cartItems.length === 0) {
     return (
-      <div className='main-layout'>
-        <div className='content-container'>
+      <div className='main-layout bg-[var(--color-background-secondary)] min-h-screen py-8'>
+        <div className='content-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='text-center py-12'>
-            <div className='max-w-md mx-auto'>
-              <h2 className='text-xl font-semibold text-[var(--color-text-primary)] mb-2'>
+            <div className='max-w-md mx-auto bg-white rounded-lg shadow-sm p-8'>
+              <h2 className='text-xl font-semibold text-[var(--color-text-primary)] mb-4'>
                 Your cart is empty
               </h2>
               <p className='text-[var(--color-text-secondary)] mb-6'>
@@ -135,7 +141,7 @@ export default function CheckoutPage() {
                 onClick={() => router.push("/store")}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className='btn-primary inline-flex items-center'
+                className='btn-primary inline-flex items-center px-6 py-3'
               >
                 <FiShoppingBag className='mr-2 h-5 w-5' />
                 Continue Shopping

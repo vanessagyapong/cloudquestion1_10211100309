@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { productsApi } from "@/services/api";
@@ -9,7 +9,12 @@ import { toast } from "sonner";
 import { FiLoader } from "react-icons/fi";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-export default function EditProduct({ params }: { params: { id: string } }) {
+interface EditProductPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function EditProduct({ params }: EditProductPageProps) {
+  const { id } = use(params);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -24,7 +29,7 @@ export default function EditProduct({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await productsApi.getProduct(params.id);
+        const response = await productsApi.getProduct(id);
         const product = response.data.data;
         setName(product.name);
         setDescription(product.description);
@@ -41,7 +46,7 @@ export default function EditProduct({ params }: { params: { id: string } }) {
     };
 
     fetchProduct();
-  }, [params.id]);
+  }, [id]);
 
   const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -72,7 +77,7 @@ export default function EditProduct({ params }: { params: { id: string } }) {
         images: allImages,
       };
 
-      await productsApi.updateProduct(params.id, productData);
+      await productsApi.updateProduct(id, productData);
       toast.success("Product updated successfully");
       router.push("/seller/dashboard");
     } catch (error) {

@@ -50,6 +50,7 @@ export interface Product {
   store: Store;
   createdAt: string;
   updatedAt: string;
+  sales: number;
 }
 
 export interface ProductFormData {

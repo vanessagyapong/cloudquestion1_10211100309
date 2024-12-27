@@ -36,27 +36,30 @@ export default function ProductFormModal({
     e.preventDefault();
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append("name", formData.name);
-      formDataToSend.append("description", formData.description);
-      formDataToSend.append("price", formData.price.toString());
-      formDataToSend.append("category", formData.category);
-      formDataToSend.append("stock", formData.stock.toString());
-      formData.images.forEach((image) => {
-        formDataToSend.append("images", image);
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === "images" && Array.isArray(value)) {
+          value.forEach((image, index) => {
+            formDataToSend.append(`images[${index}]`, image);
+          });
+        } else {
+          formDataToSend.append(key, String(value));
+        }
       });
 
       const response = product?._id
-        ? await productsApi.updateProduct(product._id, formDataToSend)
-        : await productsApi.createProduct(formDataToSend);
+        ? await productsApi.updateProduct(product._id, formData)
+        : await productsApi.createProduct(formData);
 
       onSave(response.data.data);
-      toast.success(
-        `Product ${product?._id ? "updated" : "created"} successfully`
-      );
       onClose();
+      toast.success(
+        product?._id
+          ? "Product updated successfully"
+          : "Product created successfully"
+      );
     } catch (error) {
-      toast.error(`Failed to ${product?._id ? "update" : "create"} product`);
       console.error("Error saving product:", error);
+      toast.error("Failed to save product");
     }
   };
 

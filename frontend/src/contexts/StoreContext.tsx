@@ -1,9 +1,10 @@
+"use client";
+
 import React, { createContext, useContext, useState } from "react";
-import { AxiosError } from "axios";
-import { Store } from "@/types/user";
-import { storeApi, productsApi } from "@/services/api";
-import { ApiResponse } from "@/types/user";
+import { Store, StoreStatus } from "@/types/store";
 import { Product, CreateProductData } from "@/types/product";
+import { storeApi } from "@/services/api";
+import { toast } from "sonner";
 
 interface StoreContextType {
   store: Store | null;
@@ -12,27 +13,21 @@ interface StoreContextType {
   error: string | null;
   createStore: (data: { name: string; description: string }) => Promise<void>;
   updateStore: (data: { name?: string; description?: string }) => Promise<void>;
+  refreshStore: () => Promise<void>;
   getStoreDetails: () => Promise<void>;
-  createProduct: (data: CreateProductData) => Promise<void>;
-  updateProduct: (productId: string, data: Partial<Product>) => Promise<void>;
-  deleteProduct: (productId: string) => Promise<void>;
   getStoreProducts: () => Promise<void>;
+  createProduct: (data: CreateProductData) => Promise<void>;
+  updateProduct: (id: string, data: CreateProductData) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
+export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [store, setStore] = useState<Store | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleError = (err: unknown) => {
-    const error = err as AxiosError<{ message: string }>;
-    const message = error.response?.data?.message || "An error occurred";
-    setError(message);
-    throw error;
-  };
 
   const createStore = async (data: { name: string; description: string }) => {
     try {
@@ -42,10 +37,28 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       formData.append("name", data.name);
       formData.append("description", data.description);
       const response = await storeApi.createStore(formData);
-      const apiResponse = response.data as ApiResponse<{ store: Store }>;
-      setStore(apiResponse.data.store);
+      const storeData = response.data.data.store;
+      const newStore: Store = {
+        _id: storeData._id,
+        name: storeData.name,
+        description: storeData.description,
+        owner: storeData.owner,
+        logo: storeData.logo || undefined,
+        rating: 0,
+        totalRatings: 0,
+        totalSales: 0,
+        balance: 0,
+        isActive: true,
+        status: "pending" as StoreStatus,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setStore(newStore);
     } catch (err) {
-      handleError(err);
+      console.error("Error creating store:", err);
+      setError("Failed to create store");
+      toast.error("Failed to create store");
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -59,24 +72,80 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.name) formData.append("name", data.name);
       if (data.description) formData.append("description", data.description);
       const response = await storeApi.updateStore(formData);
-      const apiResponse = response.data as ApiResponse<{ store: Store }>;
-      setStore(apiResponse.data.store);
+      const storeData = response.data.data.store;
+      const updatedStore: Store = {
+        _id: storeData._id,
+        name: storeData.name,
+        description: storeData.description,
+        owner: storeData.owner,
+        logo: storeData.logo || undefined,
+        rating: storeData.rating || 0,
+        totalRatings: storeData.totalRatings || 0,
+        totalSales: storeData.totalSales || 0,
+        balance: storeData.balance || 0,
+        isActive: storeData.isActive || true,
+        status: (storeData.status || "pending") as StoreStatus,
+        createdAt: storeData.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setStore(updatedStore);
     } catch (err) {
-      handleError(err);
+      console.error("Error updating store:", err);
+      setError("Failed to update store");
+      toast.error("Failed to update store");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshStore = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await storeApi.getMyStore();
+      const storeData = response.data.data;
+      const currentStore: Store = {
+        _id: storeData._id,
+        name: storeData.name,
+        description: storeData.description,
+        owner: storeData.owner,
+        logo: storeData.logo || undefined,
+        rating: storeData.rating || 0,
+        totalRatings: storeData.totalRatings || 0,
+        totalSales: storeData.totalSales || 0,
+        balance: storeData.balance || 0,
+        isActive: storeData.isActive || true,
+        status: (storeData.status || "pending") as StoreStatus,
+        createdAt: storeData.createdAt || new Date().toISOString(),
+        updatedAt: storeData.updatedAt || new Date().toISOString(),
+      };
+      setStore(currentStore);
+    } catch (err) {
+      console.error("Error fetching store:", err);
+      setError("Failed to fetch store");
+      toast.error("Failed to fetch store");
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
   const getStoreDetails = async () => {
+    await refreshStore();
+  };
+
+  const getStoreProducts = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await storeApi.getStore();
-      const apiResponse = response.data as ApiResponse<{ store: Store }>;
-      setStore(apiResponse.data.store);
+      const response = await storeApi.getStoreProducts();
+      setProducts(response.data.data);
     } catch (err) {
-      handleError(err);
+      console.error("Error fetching products:", err);
+      setError("Failed to fetch products");
+      toast.error("Failed to fetch products");
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -86,112 +155,79 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
       setError(null);
-      const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined) {
-          if (Array.isArray(value)) {
-            value.forEach((v) => formData.append(key, v));
-          } else {
-            formData.append(key, value.toString());
-          }
-        }
-      });
-      const response = await productsApi.createProduct(formData);
-      const apiResponse = response.data as ApiResponse<{ product: Product }>;
-      setProducts((prev) => [...prev, apiResponse.data.product]);
+      const response = await storeApi.createProduct(data);
+      setProducts([...products, response.data.data]);
+      toast.success("Product created successfully");
     } catch (err) {
-      handleError(err);
+      console.error("Error creating product:", err);
+      setError("Failed to create product");
+      toast.error("Failed to create product");
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  const updateProduct = async (productId: string, data: Partial<Product>) => {
+  const updateProduct = async (id: string, data: CreateProductData) => {
     try {
       setLoading(true);
       setError(null);
-      const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined) {
-          if (Array.isArray(value)) {
-            value.forEach((v) => {
-              if (typeof v === "string" || v instanceof Blob) {
-                formData.append(key, v);
-              } else {
-                formData.append(key, JSON.stringify(v));
-              }
-            });
-          } else {
-            if (typeof value === "string" || value instanceof Blob) {
-              formData.append(key, value);
-            } else {
-              formData.append(key, JSON.stringify(value));
-            }
-          }
-        }
-      });
-      const response = await productsApi.updateProduct(productId, formData);
-      const apiResponse = response.data as ApiResponse<{ product: Product }>;
-      setProducts((prev) =>
-        prev.map((p) => (p._id === productId ? apiResponse.data.product : p))
-      );
+      const response = await storeApi.updateProduct(id, data);
+      setProducts(products.map((p) => (p._id === id ? response.data.data : p)));
+      toast.success("Product updated successfully");
     } catch (err) {
-      handleError(err);
+      console.error("Error updating product:", err);
+      setError("Failed to update product");
+      toast.error("Failed to update product");
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteProduct = async (productId: string) => {
+  const deleteProduct = async (id: string) => {
     try {
       setLoading(true);
       setError(null);
-      await productsApi.deleteProduct(productId);
-      setProducts((prev) => prev.filter((p) => p._id !== productId));
+      await storeApi.deleteProduct(id);
+      setProducts(products.filter((p) => p._id !== id));
+      toast.success("Product deleted successfully");
     } catch (err) {
-      handleError(err);
+      console.error("Error deleting product:", err);
+      setError("Failed to delete product");
+      toast.error("Failed to delete product");
+      throw err;
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStoreProducts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await storeApi.getStoreProducts();
-      const apiResponse = response.data as ApiResponse<{ products: Product[] }>;
-      setProducts(apiResponse.data.products);
-    } catch (err) {
-      handleError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const value = {
-    store,
-    products,
-    loading,
-    error,
-    createStore,
-    updateStore,
-    getStoreDetails,
-    createProduct,
-    updateProduct,
-    deleteProduct,
-    getStoreProducts,
   };
 
   return (
-    <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
+    <StoreContext.Provider
+      value={{
+        store,
+        products,
+        loading,
+        error,
+        createStore,
+        updateStore,
+        refreshStore,
+        getStoreDetails,
+        getStoreProducts,
+        createProduct,
+        updateProduct,
+        deleteProduct,
+      }}
+    >
+      {children}
+    </StoreContext.Provider>
   );
-};
+}
 
-export const useStore = () => {
+export function useStore() {
   const context = useContext(StoreContext);
   if (context === undefined) {
     throw new Error("useStore must be used within a StoreProvider");
   }
   return context;
-};
+}

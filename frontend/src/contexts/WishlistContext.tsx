@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { wishlistApi } from "@/services/api";
 import { toast } from "sonner";
 import { WishlistItem } from "@/types/wishlist";
+import { useAuth } from "./AuthContext";
 
 interface WishlistContextType {
   wishlist: WishlistItem[];
@@ -16,6 +17,7 @@ const WishlistContext = createContext<WishlistContextType | undefined>(
 );
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
 
   const fetchWishlist = async () => {
@@ -29,8 +31,10 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    fetchWishlist();
-  }, []);
+    if (user) {
+      fetchWishlist();
+    }
+  }, [user]);
 
   const toggleWishlist = async (productId: string) => {
     try {

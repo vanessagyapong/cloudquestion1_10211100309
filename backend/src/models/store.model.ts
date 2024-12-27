@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
-import { IUser } from "./user.model";
+import type { IUser } from "../types/user";
 
 export interface IStore extends Document {
   _id: Types.ObjectId;

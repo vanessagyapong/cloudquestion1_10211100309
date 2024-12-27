@@ -13,7 +13,8 @@ import { WishlistItem } from "@/types/wishlist";
 import { CartItem } from "@/types/cart";
 import { Order } from "@/types/order";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://green-flashy-form.glitch.me/api";
 
 const axiosInstance = axios.create({
   baseURL: API_URL,

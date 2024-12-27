@@ -2,8 +2,8 @@
 
 A comprehensive e-commerce solution built with Next.js and Node.js, featuring a modern tech stack and cloud-native architecture.
 
--Student Name: Vanessa Gyapong
--Index Number: 10211100309
+- Student Name: Vanessa Gyapong
+- Index Number: 10211100309
 
 ## 🌟 Features
 

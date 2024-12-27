@@ -30,12 +30,18 @@ export const createOrder = async (req: Request, res: Response) => {
       })
     );
 
+    // Calculate estimated delivery date (7 days from now)
+    const estimatedDeliveryDate = new Date();
+    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
+
     // Create order
     const order = await Order.create({
       user: (req as any).user._id,
       items: itemsWithPrices,
       shippingAddress,
       paymentMethod,
+      estimatedDeliveryDate,
+      statusHistory: [{ status: "pending", timestamp: new Date() }],
     });
 
     // Update stock
@@ -82,7 +88,14 @@ export const getOrderById = async (req: Request, res: Response) => {
 
 export const getMyOrders = async (req: Request, res: Response) => {
   try {
-    const orders = await Order.find({ user: (req as any).user._id })
+    const { status } = req.query;
+    const query: any = { user: (req as any).user._id };
+
+    if (status) {
+      query.status = status;
+    }
+
+    const orders = await Order.find(query)
       .populate("items.product", "name imageUrl")
       .sort({ createdAt: -1 });
 
@@ -95,34 +108,78 @@ export const getMyOrders = async (req: Request, res: Response) => {
 
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
-    const { status } = req.body;
+    const { status, note, trackingNumber } = req.body;
     const order = await Order.findById(req.params.id);
 
-    if (order) {
-      order.status = status;
-      const updatedOrder = await order.save();
-      res.json(updatedOrder);
-    } else {
-      res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
+
+    // Update status
+    order.status = status;
+
+    // Add tracking number if provided
+    if (trackingNumber) {
+      order.trackingNumber = trackingNumber;
+    }
+
+    // Handle special status cases
+    switch (status) {
+      case "delivered":
+        order.actualDeliveryDate = new Date();
+        break;
+      case "cancelled":
+        order.cancellationReason = note;
+        break;
+      case "returned":
+        order.returnReason = note;
+        break;
+    }
+
+    // Add note to status history if provided
+    if (note) {
+      order.statusHistory.push({
+        status,
+        timestamp: new Date(),
+        note,
+      });
+    }
+
+    const updatedOrder = await order.save();
+    res.json(updatedOrder);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    if ((error as Error).message.includes("Invalid status transition")) {
+      res.status(400).json({ message: (error as Error).message });
+    } else {
+      res.status(500).json({ message: "Server error" });
+    }
   }
 };
 
 export const updatePaymentStatus = async (req: Request, res: Response) => {
   try {
-    const { paymentStatus } = req.body;
+    const { paymentStatus, note } = req.body;
     const order = await Order.findById(req.params.id);
 
-    if (order) {
-      order.paymentStatus = paymentStatus;
-      const updatedOrder = await order.save();
-      res.json(updatedOrder);
-    } else {
-      res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
+
+    order.paymentStatus = paymentStatus;
+
+    // Update order status based on payment status
+    if (paymentStatus === "completed" && order.status === "pending") {
+      order.status = "confirmed";
+      order.statusHistory.push({
+        status: "confirmed",
+        timestamp: new Date(),
+        note: "Payment completed",
+      });
+    }
+
+    const updatedOrder = await order.save();
+    res.json(updatedOrder);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -134,6 +191,8 @@ export const getSellerOrders: AsyncRequestHandler = async (
   res: Response
 ) => {
   try {
+    const { status } = req.query;
+
     // First, get the seller's store
     const store = await Store.findOne({ owner: req.user?._id });
     if (!store) {
@@ -147,10 +206,14 @@ export const getSellerOrders: AsyncRequestHandler = async (
     const products = await Product.find({ store: store._id });
     const productIds = products.map((product) => product._id);
 
+    // Build query
+    const query: any = { "items.product": { $in: productIds } };
+    if (status) {
+      query.status = status;
+    }
+
     // Get all orders that contain products from the store
-    const orders = await Order.find({
-      "items.product": { $in: productIds },
-    })
+    const orders = await Order.find(query)
       .populate("user", "name email")
       .populate("items.product", "name price images")
       .sort({ createdAt: -1 });
@@ -163,9 +226,18 @@ export const getSellerOrders: AsyncRequestHandler = async (
       ),
     }));
 
+    // Group orders by status for analytics
+    const ordersByStatus = filteredOrders.reduce((acc: any, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+
     res.json({
       success: true,
       count: filteredOrders.length,
+      analytics: {
+        ordersByStatus,
+      },
       data: filteredOrders,
     });
   } catch (error) {

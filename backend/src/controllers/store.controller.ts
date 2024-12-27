@@ -2,6 +2,8 @@ import { Response } from "express";
 import { AsyncRequestHandler, AuthenticatedRequest } from "../types/express";
 import Store from "../models/store.model";
 import User from "../models/user.model";
+import Product from "../models/product.model";
+import Order, { IOrder } from "../models/order.model";
 
 export const createStore: AsyncRequestHandler = async (
   req: AuthenticatedRequest,
@@ -67,9 +69,126 @@ export const getStore: AsyncRequestHandler = async (
       });
     }
 
+    // Get store's products with full details
+    const products = await Product.find({ store: store._id });
+    const productIds = products.map((product) => product._id);
+
+    // Get store's orders with detailed population
+    const orders = await Order.find({
+      "items.product": { $in: productIds },
+    })
+      .populate("user", "name email phone")
+      .populate({
+        path: "items.product",
+        select: "name price images description category stock",
+      })
+      .sort({ createdAt: -1 });
+
+    // Filter and enhance orders with additional details
+    const filteredOrders = orders.map((order) => {
+      const storeItems = order.items.filter((item) =>
+        productIds.some((id) => id.equals(item.product._id))
+      );
+
+      const orderTotal = storeItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
+      const orderDoc = order.toObject();
+      return {
+        ...orderDoc,
+        items: storeItems,
+        orderDetails: {
+          id: orderDoc._id,
+          createdAt: orderDoc.createdAt,
+          updatedAt: orderDoc.updatedAt,
+          status: orderDoc.status,
+          paymentStatus: orderDoc.paymentStatus,
+          paymentMethod: orderDoc.paymentMethod,
+          trackingNumber: orderDoc.trackingNumber,
+          estimatedDeliveryDate: orderDoc.estimatedDeliveryDate,
+          actualDeliveryDate: orderDoc.actualDeliveryDate,
+          storeTotal: orderTotal,
+        },
+        customer: orderDoc.user,
+        shippingAddress: orderDoc.shippingAddress,
+        statusHistory: orderDoc.statusHistory,
+      };
+    });
+
+    // Group orders by status for better organization
+    const ordersByStatus = filteredOrders.reduce((acc: any, order) => {
+      if (!acc[order.status]) {
+        acc[order.status] = [];
+      }
+      acc[order.status].push(order);
+      return acc;
+    }, {});
+
+    // Calculate analytics
+    const analytics = {
+      overview: {
+        totalOrders: filteredOrders.length,
+        totalRevenue: filteredOrders.reduce(
+          (total, order) => total + order.orderDetails.storeTotal,
+          0
+        ),
+        averageOrderValue:
+          filteredOrders.length > 0
+            ? filteredOrders.reduce(
+                (total, order) => total + order.orderDetails.storeTotal,
+                0
+              ) / filteredOrders.length
+            : 0,
+      },
+      ordersByStatus: Object.keys(ordersByStatus).reduce((acc: any, status) => {
+        acc[status] = ordersByStatus[status].length;
+        return acc;
+      }, {}),
+      recentOrders: filteredOrders.slice(0, 5),
+      productPerformance: productIds.reduce((acc: any, productId) => {
+        const productOrders = filteredOrders.filter((order) =>
+          order.items.some((item) => item.product._id.equals(productId))
+        );
+        const product = products.find((p) => p._id.equals(productId));
+        if (product) {
+          acc[product.name] = {
+            totalOrders: productOrders.length,
+            totalQuantity: productOrders.reduce((total, order) => {
+              const item = order.items.find((i) =>
+                i.product._id.equals(productId)
+              );
+              return total + (item?.quantity || 0);
+            }, 0),
+            totalRevenue: productOrders.reduce((total, order) => {
+              const item = order.items.find((i) =>
+                i.product._id.equals(productId)
+              );
+              return total + (item ? item.price * item.quantity : 0);
+            }, 0),
+            inStock: product.stock,
+          };
+        }
+        return acc;
+      }, {}),
+      timeBasedAnalysis: {
+        daily: getDailyOrderStats(filteredOrders),
+        monthly: getMonthlyOrderStats(filteredOrders),
+      },
+    };
+
     res.json({
       success: true,
-      data: store,
+      data: {
+        store,
+        products,
+        orders: {
+          all: filteredOrders,
+          byStatus: ordersByStatus,
+        },
+        analytics,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -79,6 +198,60 @@ export const getStore: AsyncRequestHandler = async (
     });
   }
 };
+
+// Helper function to get daily order statistics
+function getDailyOrderStats(
+  orders: Array<{ orderDetails: { createdAt: Date; storeTotal: number } }>
+) {
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    return date.toISOString().split("T")[0];
+  });
+
+  return last7Days.reduce((acc: any, date) => {
+    const dayOrders = orders.filter(
+      (order) =>
+        new Date(order.orderDetails.createdAt).toISOString().split("T")[0] ===
+        date
+    );
+    acc[date] = {
+      orders: dayOrders.length,
+      revenue: dayOrders.reduce(
+        (sum: number, order) => sum + order.orderDetails.storeTotal,
+        0
+      ),
+    };
+    return acc;
+  }, {});
+}
+
+// Helper function to get monthly order statistics
+function getMonthlyOrderStats(
+  orders: Array<{ orderDetails: { createdAt: Date; storeTotal: number } }>
+) {
+  const last6Months = Array.from({ length: 6 }, (_, i) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    return date.toISOString().slice(0, 7);
+  });
+
+  return last6Months.reduce((acc: any, monthYear) => {
+    const monthOrders = orders.filter(
+      (order) =>
+        new Date(order.orderDetails.createdAt).toISOString().slice(0, 7) ===
+        monthYear
+    );
+    acc[monthYear] = {
+      orders: monthOrders.length,
+      revenue: monthOrders.reduce(
+        (sum: number, order) => sum + order.orderDetails.storeTotal,
+        0
+      ),
+    };
+    return acc;
+  }, {});
+}
 
 export const updateStore: AsyncRequestHandler = async (
   req: AuthenticatedRequest,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState } from "react";
+import React, { use, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Product } from "@/types/product";
 import { productsApi } from "@/services/api";
@@ -8,7 +8,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { toast } from "sonner";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
-import { IoIosArrowBack } from "react-icons/io";
+import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import Image from "next/image";
 
 interface ProductDetailsPageProps {
@@ -21,9 +21,55 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
   const router = useRouter();
   const { addToCart } = useCart();
   const { toggleWishlist, wishlist } = useWishlist();
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+
+    const touchEnd = e.touches[0].clientX;
+    const diff = touchStart - touchEnd;
+
+    if (Math.abs(diff) > 50 && product?.images) {
+      // 50px threshold for swipe
+      if (diff > 0) {
+        // Swipe left
+        setCurrentImageIndex((prev) =>
+          prev === product.images.length - 1 ? 0 : prev + 1
+        );
+      } else {
+        // Swipe right
+        setCurrentImageIndex((prev) =>
+          prev === 0 ? product.images.length - 1 : prev - 1
+        );
+      }
+      setTouchStart(null);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchStart(null);
+  };
+
+  const nextImage = useCallback(() => {
+    if (!product?.images) return;
+    setCurrentImageIndex((prev) =>
+      prev === product.images.length - 1 ? 0 : prev + 1
+    );
+  }, [product?.images]);
+
+  const prevImage = useCallback(() => {
+    if (!product?.images) return;
+    setCurrentImageIndex((prev) =>
+      prev === 0 ? product.images.length - 1 : prev - 1
+    );
+  }, [product?.images]);
 
   React.useEffect(() => {
     const fetchProduct = async () => {
@@ -47,7 +93,7 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
   const handleAddToCart = async () => {
     if (!product) return;
     try {
-      await addToCart(product._id, quantity);
+      await addToCart(product?._id, quantity);
       toast.success("Added to cart successfully");
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -58,7 +104,7 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
   const handleToggleWishlist = async () => {
     if (!product) return;
     try {
-      await toggleWishlist(product._id);
+      await toggleWishlist(product?._id);
     } catch (error) {
       console.error("Error toggling wishlist:", error);
       toast.error("Failed to update wishlist");
@@ -66,7 +112,7 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
   };
 
   const isInWishlist =
-    product && wishlist.some((item) => item.product._id === product._id);
+    product && wishlist.some((item) => item?.product?._id === product?._id);
 
   if (loading) {
     return (
@@ -91,7 +137,7 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
   }
 
   return (
-    <div className='min-h-screen bg-[var(--color-background-secondary)] py-8'>
+    <div className='min-h-screen bg-[var(--color-background-secondary)] py-8 pt-24'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         <button
           onClick={() => router.back()}
@@ -103,24 +149,52 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
         <div className='bg-white rounded-lg shadow-sm p-6'>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
             {/* Image Slider */}
-            <div className='relative aspect-square rounded-lg overflow-hidden'>
+            <div
+              className='relative aspect-video rounded-lg overflow-hidden group'
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               <Image
-                src={product.images[currentImageIndex] || "/placeholder.png"}
-                alt={product.name}
+                src={product?.images[currentImageIndex] || "/placeholder.png"}
+                alt={product?.name || ""}
                 fill
-                className='object-cover'
+                className='object-contain'
               />
-              {product.images.length > 1 && (
+
+              {/* Navigation Arrows */}
+              {product?.images && product.images.length > 1 && (
+                <>
+                  <button
+                    onClick={prevImage}
+                    className='absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity'
+                    aria-label='Previous image'
+                  >
+                    <IoIosArrowBack size={24} />
+                  </button>
+                  <button
+                    onClick={nextImage}
+                    className='absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity'
+                    aria-label='Next image'
+                  >
+                    <IoIosArrowForward size={24} />
+                  </button>
+                </>
+              )}
+
+              {/* Dots Navigation */}
+              {product?.images?.length > 1 && (
                 <div className='absolute bottom-4 left-0 right-0 flex justify-center gap-2'>
-                  {product.images.map((_, index) => (
+                  {product?.images.map((_, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentImageIndex(index)}
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-2 h-2 rounded-full transition-all ${
                         currentImageIndex === index
-                          ? "bg-[var(--color-primary)]"
-                          : "bg-gray-300"
+                          ? "bg-[var(--color-primary)] w-4"
+                          : "bg-gray-300 hover:bg-gray-400"
                       }`}
+                      aria-label={`Go to image ${index + 1}`}
                     />
                   ))}
                 </div>
@@ -130,14 +204,14 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
             {/* Product Info */}
             <div className='flex flex-col gap-4'>
               <h1 className='text-2xl font-bold text-[var(--color-text-primary)]'>
-                {product.name}
+                {product?.name || ""}
               </h1>
               <p className='text-[var(--color-text-secondary)]'>
-                {product.description}
+                {product?.description || ""}
               </p>
               <div className='flex items-center justify-between'>
                 <p className='text-xl font-semibold text-[var(--color-primary)]'>
-                  ${product.price.toFixed(2)}
+                  ${product?.price?.toFixed(2) || ""}
                 </p>
                 <button
                   onClick={handleToggleWishlist}
@@ -163,7 +237,7 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
                   </span>
                   <button
                     onClick={() =>
-                      setQuantity(Math.min(product.stock, quantity + 1))
+                      setQuantity(Math.min(product?.stock || 0, quantity + 1))
                     }
                     className='px-3 py-2 text-[var(--color-text-primary)] hover:bg-[var(--color-background-secondary)]'
                   >
@@ -172,21 +246,21 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
                 </div>
                 <button
                   onClick={handleAddToCart}
-                  disabled={product.stock === 0}
+                  disabled={product?.stock === 0}
                   className='flex-1 btn-primary py-2'
                 >
-                  {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+                  {product?.stock === 0 ? "Out of Stock" : "Add to Cart"}
                 </button>
               </div>
               <div className='mt-4'>
                 <p className='text-sm text-[var(--color-text-secondary)]'>
-                  Category: {product.category}
+                  Category: {product?.category || ""}
                 </p>
                 <p className='text-sm text-[var(--color-text-secondary)]'>
-                  Stock: {product.stock} units
+                  Stock: {product?.stock || 0} units
                 </p>
                 <p className='text-sm text-[var(--color-text-secondary)]'>
-                  Sales: {product.sales} sold
+                  Sales: {product?.totalSales || 0} sold
                 </p>
               </div>
             </div>

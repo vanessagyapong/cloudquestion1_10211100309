@@ -41,7 +41,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       if (isInWishlist(productId)) {
         await wishlistApi.removeFromWishlist(productId);
         setWishlist((current) =>
-          current.filter((item) => item.product._id !== productId)
+          current.filter((item) => item?._id !== productId)
         );
         toast.success("Removed from wishlist");
       } else {
@@ -49,6 +49,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         setWishlist((current) => [...current, response.data.data]);
         toast.success("Added to wishlist");
       }
+      fetchWishlist();
     } catch (error) {
       console.error("Error toggling wishlist:", error);
       toast.error("Failed to update wishlist");
@@ -56,7 +57,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isInWishlist = (productId: string) => {
-    return wishlist.some((item) => item.product._id === productId);
+    return wishlist.some((item) => item?._id === productId);
   };
 
   return (

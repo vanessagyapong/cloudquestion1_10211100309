@@ -135,7 +135,7 @@ export const ordersApi = {
     };
     paymentMethod: string;
   }) => axiosInstance.post<{ data: Order }>("/orders", data),
-
+  getMyOrders: () => axiosInstance.get<{ data: Order[] }>("/orders/my-orders"),
   getOrders: () => axiosInstance.get<{ data: Order[] }>("/orders"),
 
   getOrder: (id: string) => axiosInstance.get<{ data: Order }>(`/orders/${id}`),

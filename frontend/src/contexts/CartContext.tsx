@@ -72,7 +72,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       await cartApi.addToCart(productId, quantity);
       await refreshCart(); // Refresh the entire cart to ensure consistency
-      toast.success("Added to cart successfully!");
     } catch (error) {
       console.error("Error adding to cart:", error);
       toast.error("Failed to add to cart");

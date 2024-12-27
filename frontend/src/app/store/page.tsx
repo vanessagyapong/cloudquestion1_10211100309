@@ -97,7 +97,7 @@ export default function Store() {
                 }}
                 onToggleWishlist={() => toggleWishlist(product._id)}
                 isInWishlist={wishlist.some(
-                  (item) => item?.product?._id === product?._id
+                  (item) => item?._id === product?._id
                 )}
                 onClick={() => router.push(`/productDetails/${product._id}`)}
               />

@@ -49,7 +49,6 @@ const tabs = [
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [store, setStore] = useState<Store>();
-  const { items: _ } = useCart();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -91,7 +90,7 @@ export default function ProfilePage() {
     };
 
     const fetchMyOrders = async () => {
-      if (user && !orders.length) {
+      if (user && !orders?.length) {
         const res = await ordersApi.getMyOrders();
         setOrders(res?.data?.data as unknown as Order[]);
       }
@@ -102,7 +101,7 @@ export default function ProfilePage() {
     }
 
     fetchMyOrders();
-  }, [user, store, orders.length]);
+  }, [user, store, orders?.length]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -583,8 +582,8 @@ export default function ProfilePage() {
                       })}
                     </p>
                     <p className='text-xs text-[var(--color-text-secondary)]'>
-                      {order.items.length}{" "}
-                      {order.items.length === 1 ? "item" : "items"}
+                      {order.items?.length}{" "}
+                      {order.items?.length === 1 ? "item" : "items"}
                     </p>
                   </div>
                 </div>

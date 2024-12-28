@@ -89,7 +89,7 @@ export default function EditProduct({ params }: EditProductPageProps) {
         }
       });
     };
-  }, [id]);
+  }, [id, previewImages]);
 
   useEffect(() => {
     // Cleanup function to revoke the data URIs to avoid memory leaks

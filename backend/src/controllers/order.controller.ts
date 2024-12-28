@@ -15,8 +15,8 @@ export const createOrder = async (req: Request, res: Response) => {
 
     // Verify stock and get prices
     const itemsWithPrices = await Promise.all(
-      items.map(async (item: { productId: string; quantity: number }) => {
-        const product = await Product.findById(item?.productId);
+      items.map(async (item: { product: string; quantity: number }) => {
+        const product = await Product.findById(item?.product);
         if (!product) {
           throw new Error("Product not found");
         }
@@ -24,7 +24,7 @@ export const createOrder = async (req: Request, res: Response) => {
           throw new Error(`Not enough stock for ${product.name}`);
         }
         return {
-          product: item.productId,
+          product: item.product,
           quantity: item.quantity,
           price: product.price,
         };
@@ -44,7 +44,6 @@ export const createOrder = async (req: Request, res: Response) => {
       ),
       shippingAddress: {
         ...shippingAddress,
-        zipCode: shippingAddress.postalCode,
       },
       paymentMethod: paymentMethod,
       estimatedDeliveryDate,

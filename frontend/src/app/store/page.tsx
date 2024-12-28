@@ -16,7 +16,7 @@ export default function Store() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category>("All");
-  const { addToCart } = useCart();
+  const { addToCart, items: cartItems } = useCart();
   const { toggleWishlist, wishlist } = useWishlist();
   const router = useRouter();
 
@@ -92,8 +92,12 @@ export default function Store() {
                 key={product._id}
                 product={product}
                 onAddToCart={() => {
-                  addToCart(product._id, 1);
-                  toast.success("Added to cart");
+                  if (cartItems.some((item) => item._id === product._id)) {
+                    toast.error("Product already in cart");
+                  } else {
+                    addToCart(product._id, 1);
+                    toast.success("Added to cart");
+                  }
                 }}
                 onToggleWishlist={() => toggleWishlist(product._id)}
                 isInWishlist={wishlist.some(

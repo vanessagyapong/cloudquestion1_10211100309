@@ -49,7 +49,7 @@ const tabs = [
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [store, setStore] = useState<Store>();
-  const { items: cartItems } = useCart();
+  const { items: _ } = useCart();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -102,7 +102,7 @@ export default function ProfilePage() {
     }
 
     fetchMyOrders();
-  }, [user, store]);
+  }, [user, store, orders.length]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();

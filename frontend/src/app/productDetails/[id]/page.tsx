@@ -112,7 +112,7 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
   };
 
   const isInWishlist =
-    product && wishlist.some((item) => item?.product?._id === product?._id);
+    product && wishlist.some((item) => item?._id === product?._id);
 
   if (loading) {
     return (
@@ -149,49 +149,52 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
         <div className='bg-white rounded-lg shadow-sm p-6'>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
             {/* Image Slider */}
-            <div
-              className='relative aspect-video rounded-lg overflow-hidden group'
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
-              <Image
-                src={product?.images[currentImageIndex] || "/placeholder.png"}
-                alt={product?.name || ""}
-                fill
-                className='object-contain'
-              />
+            <div className='flex flex-col space-y-4'>
+              <div
+                className='relative aspect-square w-full rounded-lg  group'
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                <Image
+                  src={product?.images[currentImageIndex] || "/placeholder.png"}
+                  alt={product?.name || ""}
+                  fill
+                  className='object-contain transition-transform duration-300 group-hover:scale-105'
+                  priority
+                />
 
-              {/* Navigation Arrows */}
-              {product?.images && product.images.length > 1 && (
-                <>
-                  <button
-                    onClick={prevImage}
-                    className='absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity'
-                    aria-label='Previous image'
-                  >
-                    <IoIosArrowBack size={24} />
-                  </button>
-                  <button
-                    onClick={nextImage}
-                    className='absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity'
-                    aria-label='Next image'
-                  >
-                    <IoIosArrowForward size={24} />
-                  </button>
-                </>
-              )}
+                {/* Navigation Arrows */}
+                {product?.images && product.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      className='absolute -left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity'
+                      aria-label='Previous image'
+                    >
+                      <IoIosArrowBack size={24} />
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className='absolute -right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity'
+                      aria-label='Next image'
+                    >
+                      <IoIosArrowForward size={24} />
+                    </button>
+                  </>
+                )}
+              </div>
 
               {/* Dots Navigation */}
               {product?.images?.length > 1 && (
-                <div className='absolute bottom-4 left-0 right-0 flex justify-center gap-2'>
+                <div className='flex justify-center gap-2 pt-2'>
                   {product?.images.map((_, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentImageIndex(index)}
                       className={`w-2 h-2 rounded-full transition-all ${
                         currentImageIndex === index
-                          ? "bg-[var(--color-primary)] w-4"
+                          ? "bg-[var(--color-primary)] w-6"
                           : "bg-gray-300 hover:bg-gray-400"
                       }`}
                       aria-label={`Go to image ${index + 1}`}
@@ -218,9 +221,9 @@ export default function ProductDetails({ params }: ProductDetailsPageProps) {
                   className='text-[var(--color-primary)] hover:text-[var(--color-primary-dark)]'
                 >
                   {isInWishlist ? (
-                    <FaHeart size={24} />
+                    <FaHeart size={24} className='text-red-500 fill-red-500' />
                   ) : (
-                    <FaRegHeart size={24} />
+                    <FaRegHeart size={24} className='text-red-500' />
                   )}
                 </button>
               </div>

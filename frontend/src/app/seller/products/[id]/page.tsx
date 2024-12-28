@@ -91,6 +91,13 @@ export default function EditProduct({ params }: EditProductPageProps) {
     };
   }, [id]);
 
+  useEffect(() => {
+    // Cleanup function to revoke the data URIs to avoid memory leaks
+    return () => {
+      previewImages.forEach((image) => URL.revokeObjectURL(image));
+    };
+  }, [previewImages]);
+
   const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

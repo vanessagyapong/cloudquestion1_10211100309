@@ -9,7 +9,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import {
   FiCreditCard,
-  FiMapPin,
   FiTruck,
   FiShoppingBag,
   FiArrowLeft,

@@ -25,7 +25,6 @@ import {
 import { motion } from "framer-motion";
 import { Store, StoreCreationData } from "@/types/user";
 import Image from "next/image";
-import { useCart } from "@/contexts/CartContext";
 import { Order } from "@/types/order";
 import { useRouter } from "next/navigation";
 import { Product } from "@/types/product";

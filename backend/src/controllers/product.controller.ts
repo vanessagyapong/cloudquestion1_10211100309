@@ -34,7 +34,7 @@ export const createProduct: AsyncRequestHandler = async (
       price,
       stock,
       category,
-      images: images.split(",next,"),
+      images: images,
       store: store._id,
       sku,
     });
@@ -164,7 +164,7 @@ export const updateProduct: AsyncRequestHandler = async (
     // Update product
     const updatedProduct = await Product.findByIdAndUpdate(
       productId,
-      { ...updates, images: updates.images.split(",next,") },
+      { ...updates, images: updates.images },
       { new: true, runValidators: true }
     );
 

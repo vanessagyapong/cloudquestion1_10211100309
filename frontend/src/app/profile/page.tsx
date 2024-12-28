@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { toast } from "sonner";
-import { userApi, storeApi } from "@/services/api";
+import { userApi, storeApi, ordersApi } from "@/services/api";
 import { Tab } from "@headlessui/react";
 import {
   FiUser,
@@ -20,11 +20,15 @@ import {
   FiLock,
   FiMail,
   FiAlertTriangle,
+  FiTruck,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { Store, StoreCreationData } from "@/types/user";
 import Image from "next/image";
 import { useCart } from "@/contexts/CartContext";
+import { Order } from "@/types/order";
+import { useRouter } from "next/navigation";
+import { Product } from "@/types/product";
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(" ");
@@ -48,6 +52,7 @@ export default function ProfilePage() {
   const { items: cartItems } = useCart();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [orders, setOrders] = useState<Order[]>([]);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -61,6 +66,7 @@ export default function ProfilePage() {
   const [isSubmittingProfile, setIsSubmittingProfile] = useState(false);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (user) {
@@ -75,14 +81,27 @@ export default function ProfilePage() {
         const res = await storeApi.getMyStore();
 
         if (res) {
-          setStore(res.data.data as unknown as Store);
+          // @ts-expect-error - store may be undefined
+          setStore(res?.data?.data?.store as unknown as Store);
+          console.log(res?.data?.data);
+          // @ts-expect-error - orders may be undefined
+          setOrders(res?.data?.data?.orders?.all as unknown as Order[]);
         }
+      }
+    };
+
+    const fetchMyOrders = async () => {
+      if (user && !orders.length) {
+        const res = await ordersApi.getMyOrders();
+        setOrders(res?.data?.data as unknown as Order[]);
       }
     };
 
     if (user?.role === "seller") {
       fetchMyStore();
     }
+
+    fetchMyOrders();
   }, [user, store]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -166,96 +185,183 @@ export default function ProfilePage() {
   };
 
   const renderStoreForm = () => (
-    <motion.form
-      onSubmit={handleSellerSubmit}
-      className='card p-6'
+    <motion.div
+      className='bg-[var(--color-bg-primary)] p-8 rounded-lg shadow-lg'
       initial={fadeIn.initial}
       animate={fadeIn.animate}
       exit={fadeIn.exit}
     >
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-        <div>
-          <label className='block text-sm font-medium text-gray-300'>
-            <FiShoppingBag className='inline-block mr-2' />
-            Store Name <span className='text-red-500'>*</span>
-          </label>
-          <input
-            type='text'
-            value={storeFormData.name}
-            onChange={(e) =>
-              setStoreFormData({ ...storeFormData, name: e.target.value })
-            }
-            className='input-primary'
-            required
-          />
+      <div className='mb-8'>
+        <h2 className='text-2xl font-bold text-[var(--color-text-primary)] mb-2'>
+          Become a Seller
+        </h2>
+        <p className='text-[var(--color-text-secondary)]'>
+          Start your journey as a seller by setting up your store profile. Fill
+          out the details below.
+        </p>
+      </div>
+
+      <motion.form onSubmit={handleSellerSubmit} className='space-y-8'>
+        {/* Store Basic Info Section */}
+        <div className='space-y-6'>
+          <h3 className='text-lg font-semibold text-[var(--color-text-primary)] flex items-center'>
+            <FiInfo className='mr-2' />
+            Basic Information
+          </h3>
+
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+            <div className='space-y-2'>
+              <label className='block text-sm font-medium text-[var(--color-text-primary)]'>
+                <FiShoppingBag className='inline-block mr-2' />
+                Store Name <span className='text-red-500'>*</span>
+              </label>
+              <input
+                type='text'
+                value={storeFormData.name}
+                onChange={(e) =>
+                  setStoreFormData({ ...storeFormData, name: e.target.value })
+                }
+                className='input-primary w-full transition-all duration-200 border border-[var(--color-border)] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg'
+                placeholder='Enter your store name'
+                required
+              />
+              <p className='text-xs text-[var(--color-text-secondary)]'>
+                Choose a unique and memorable name for your store
+              </p>
+            </div>
+
+            <div className='space-y-2'>
+              <label className='block text-sm font-medium text-[var(--color-text-primary)]'>
+                <FiPhone className='inline-block mr-2' />
+                Contact Phone <span className='text-red-500'>*</span>
+              </label>
+              <input
+                type='tel'
+                value={storeFormData.contactPhone}
+                onChange={(e) =>
+                  setStoreFormData({
+                    ...storeFormData,
+                    contactPhone: e.target.value,
+                  })
+                }
+                className='input-primary w-full transition-all duration-200 border border-[var(--color-border)] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg'
+                placeholder='Enter contact number'
+                required
+              />
+              <p className='text-xs text-[var(--color-text-secondary)]'>
+                This number will be used for business communications
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label className='block text-sm font-medium text-gray-300'>
-            <FiPhone className='inline-block mr-2' />
-            Contact Phone
-          </label>
-          <input
-            type='tel'
-            value={storeFormData.contactPhone}
-            onChange={(e) =>
-              setStoreFormData({
-                ...storeFormData,
-                contactPhone: e.target.value,
-              })
-            }
-            className='input-primary'
-            required
-          />
+        {/* Store Details Section */}
+        <div className='space-y-6 pt-6 border-t border-[var(--color-border)]'>
+          <h3 className='text-lg font-semibold text-[var(--color-text-primary)] flex items-center'>
+            <FiInfo className='mr-2' />
+            Store Details
+          </h3>
+
+          <div className='space-y-2'>
+            <label className='block text-sm font-medium text-[var(--color-text-primary)]'>
+              <FiInfo className='inline-block mr-2' />
+              Store Description <span className='text-red-500'>*</span>
+            </label>
+            <textarea
+              value={storeFormData.description}
+              onChange={(e) =>
+                setStoreFormData({
+                  ...storeFormData,
+                  description: e.target.value,
+                })
+              }
+              rows={4}
+              className='input-primary w-full transition-all duration-200 border border-[var(--color-border)] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg resize-none'
+              placeholder='Describe your store and what you sell...'
+              required
+            />
+            <p className='text-xs text-[var(--color-text-secondary)]'>
+              Provide a detailed description of your store and the products you
+              plan to sell
+            </p>
+          </div>
+
+          <div className='space-y-2'>
+            <label className='block text-sm font-medium text-[var(--color-text-primary)]'>
+              <FiMapPin className='inline-block mr-2' />
+              Store Address <span className='text-red-500'>*</span>
+            </label>
+            <textarea
+              value={storeFormData.address}
+              onChange={(e) =>
+                setStoreFormData({ ...storeFormData, address: e.target.value })
+              }
+              rows={3}
+              className='input-primary w-full transition-all duration-200 border border-[var(--color-border)] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg resize-none'
+              placeholder='Enter your business address'
+              required
+            />
+            <p className='text-xs text-[var(--color-text-secondary)]'>
+              This address will be used for business verification and shipping
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div>
-        <label className='block text-sm font-medium text-gray-300'>
-          <FiInfo className='inline-block mr-2' />
-          Store Description <span className='text-red-500'>*</span>
-        </label>
-        <textarea
-          value={storeFormData.description}
-          onChange={(e) =>
-            setStoreFormData({
-              ...storeFormData,
-              description: e.target.value,
-            })
-          }
-          rows={3}
-          className='input-primary'
-          required
-        />
-      </div>
+        {/* Terms and Submit Section */}
+        <div className='pt-6 border-t border-[var(--color-border)]'>
+          <p className='text-sm text-[var(--color-text-secondary)] mb-6'>
+            By submitting this form, you agree to our{" "}
+            <a href='#' className='text-blue-500 hover:text-blue-600'>
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href='#' className='text-blue-500 hover:text-blue-600'>
+              Seller Guidelines
+            </a>
+            .
+          </p>
 
-      <div>
-        <label className='block text-sm font-medium text-gray-300'>
-          <FiMapPin className='inline-block mr-2' />
-          Store Address
-        </label>
-        <textarea
-          value={storeFormData.address}
-          onChange={(e) =>
-            setStoreFormData({ ...storeFormData, address: e.target.value })
-          }
-          rows={2}
-          className='input-primary'
-          required
-        />
-      </div>
-
-      <motion.button
-        type='submit'
-        disabled={isSubmittingSeller}
-        className='btn-primary'
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <FiEdit className='mr-2' />
-        {isSubmittingSeller ? "Submitting..." : "Submit Application"}
-      </motion.button>
-    </motion.form>
+          <motion.button
+            type='submit'
+            disabled={isSubmittingSeller}
+            className='btn-primary w-full flex items-center justify-center py-3 text-base'
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {isSubmittingSeller ? (
+              <>
+                <svg
+                  className='animate-spin -ml-1 mr-3 h-5 w-5 text-white'
+                  xmlns='http://www.w3.org/2000/svg'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                >
+                  <circle
+                    className='opacity-25'
+                    cx='12'
+                    cy='12'
+                    r='10'
+                    stroke='currentColor'
+                    strokeWidth='4'
+                  ></circle>
+                  <path
+                    className='opacity-75'
+                    fill='currentColor'
+                    d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                  ></path>
+                </svg>
+                Submitting Application...
+              </>
+            ) : (
+              <>
+                <FiEdit className='mr-2 h-5 w-5' />
+                Submit Application
+              </>
+            )}
+          </motion.button>
+        </div>
+      </motion.form>
+    </motion.div>
   );
 
   const renderStoreStatus = () => {
@@ -396,38 +502,222 @@ export default function ProfilePage() {
       <h2 className='text-2xl font-bold text-[var(--color-text-primary)] mb-6'>
         Your Orders
       </h2>
-      {cartItems.length > 0 ? (
-        <div className='space-y-4'>
-          {cartItems.map((item) => (
-            <div
-              key={item.product._id}
-              className='flex items-center space-x-4 p-4 rounded-lg'
+      {orders?.length > 0 ? (
+        <div className='space-y-6'>
+          {orders?.map((order) => (
+            <motion.div
+              key={order._id}
+              className='bg-[var(--color-bg-primary)] rounded-xl shadow-md overflow-hidden border border-[var(--color-border)] hover:shadow-lg transition-all duration-200'
+              whileHover={{ scale: 1.005 }}
+              transition={{ duration: 0.2 }}
             >
-              <div className='relative h-20 w-20'>
-                <Image
-                  src={item.product.images[0]}
-                  alt={item.product.name}
-                  fill
-                  className='object-scale-down rounded-md'
-                />
+              {/* Order Header */}
+              <div className='bg-[var(--color-background-secondary)] px-6 py-4 border-b border-[var(--color-border)]'>
+                <div className='flex flex-wrap items-center justify-between gap-4'>
+                  <div className='space-y-1.5'>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-xs px-2 py-0.5 bg-[var(--color-bg-primary)] rounded-full text-[var(--color-text-secondary)]'>
+                        #{order._id.slice(-8).toUpperCase()}
+                      </span>
+                      <span className='text-xs text-[var(--color-text-secondary)]'>
+                        •
+                      </span>
+                      <span className='text-xs text-[var(--color-text-secondary)]'>
+                        {new Date(order.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize
+                        ${
+                          order.status === "delivered"
+                            ? "bg-green-100 text-green-800"
+                            : order.status === "cancelled"
+                            ? "bg-red-100 text-red-800"
+                            : order.status === "processing"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.status === "shipped"
+                            ? "bg-purple-100 text-purple-800"
+                            : order.status === "confirmed"
+                            ? "bg-teal-100 text-teal-800"
+                            : order.status === "packed"
+                            ? "bg-indigo-100 text-indigo-800"
+                            : order.status === "out_for_delivery"
+                            ? "bg-violet-100 text-violet-800"
+                            : order.status === "returned"
+                            ? "bg-orange-100 text-orange-800"
+                            : order.status === "refunded"
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        Order: {order.status.split("_").join(" ")}
+                      </span>
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize
+                        ${
+                          order.paymentStatus === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : order.paymentStatus === "processing"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.paymentStatus === "refunded"
+                            ? "bg-orange-100 text-orange-800"
+                            : order.paymentStatus === "failed"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        Payment: {order.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                  <div className='text-right'>
+                    <p className='text-lg font-bold text-[var(--color-text-primary)]'>
+                      {order.totalAmount.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })}
+                    </p>
+                    <p className='text-xs text-[var(--color-text-secondary)]'>
+                      {order.items.length}{" "}
+                      {order.items.length === 1 ? "item" : "items"}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className='flex-1'>
-                <h3 className='text-[var(--color-text-primary)] font-medium'>
-                  {item.product.name}
-                </h3>
-                <p className='text-[var(--color-text-secondary)]'>
-                  Quantity: {item.quantity}
-                </p>
-                <p className='text-[var(--color-text-secondary)]'>
-                  Total: ${(item.quantity * item.product.price).toFixed(2)}
-                </p>
+
+              {/* Order Items */}
+              <div className='p-6'>
+                <div className='space-y-4'>
+                  {order.items.map((item, index) => {
+                    const product =
+                      typeof item.product === "string"
+                        ? ({ _id: item.product } as Product)
+                        : (item.product as Product);
+                    return (
+                      <div
+                        key={item._id || index}
+                        className='flex items-center gap-4 p-3 rounded-lg border border-[var(--color-border)] hover:border-blue-500/30 hover:bg-blue-50/5 transition-all duration-200'
+                      >
+                        {product.images?.[0] && (
+                          <div className='relative h-20 w-20 flex-shrink-0 bg-white rounded-md overflow-hidden border border-[var(--color-border)]'>
+                            <Image
+                              src={product.images[0]}
+                              alt={product.name || "Product image"}
+                              fill
+                              className='object-contain p-2'
+                            />
+                          </div>
+                        )}
+                        <div className='flex-1 min-w-0'>
+                          <h3 className='text-[var(--color-text-primary)] font-medium truncate'>
+                            {product.name || `Product ID: ${product._id}`}
+                          </h3>
+                          <div className='mt-1 flex flex-wrap gap-4 text-sm text-[var(--color-text-secondary)]'>
+                            <p className='flex items-center gap-1'>
+                              <span>Price:</span>
+                              <span className='font-medium text-[var(--color-text-primary)]'>
+                                {item.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                                })}
+                              </span>
+                            </p>
+                            <p className='flex items-center gap-1'>
+                              <span>Qty:</span>
+                              <span className='font-medium text-[var(--color-text-primary)]'>
+                                {item.quantity}
+                              </span>
+                            </p>
+                            <p className='flex items-center gap-1'>
+                              <span>Total:</span>
+                              <span className='font-medium text-[var(--color-text-primary)]'>
+                                {(item.quantity * item.price).toLocaleString(
+                                  "en-US",
+                                  {
+                                    style: "currency",
+                                    currency: "USD",
+                                  }
+                                )}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Order Details */}
+                <div className='mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm'>
+                  <div className='p-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)]'>
+                    <h4 className='font-medium text-[var(--color-text-primary)] mb-3 flex items-center'>
+                      <FiMapPin className='mr-2 h-4 w-4' />
+                      Shipping Address
+                    </h4>
+                    <div className='text-[var(--color-text-secondary)] space-y-1'>
+                      <p className='font-medium text-[var(--color-text-primary)]'>
+                        {order.shippingAddress.street}
+                      </p>
+                      <p>
+                        {order.shippingAddress.city},{" "}
+                        {order.shippingAddress.state}{" "}
+                        {order.shippingAddress.zipCode}
+                      </p>
+                      <p>{order.shippingAddress.country}</p>
+                    </div>
+                  </div>
+                  <div className='p-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)]'>
+                    <h4 className='font-medium text-[var(--color-text-primary)] mb-3 flex items-center'>
+                      <FiTruck className='mr-2 h-4 w-4' />
+                      Delivery Information
+                    </h4>
+                    <div className='text-[var(--color-text-secondary)] space-y-2'>
+                      <p className='flex items-center justify-between'>
+                        <span>Expected Delivery:</span>
+                        <span className='font-medium text-[var(--color-text-primary)]'>
+                          {new Date(
+                            order.estimatedDeliveryDate
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </p>
+                      {order.trackingNumber && (
+                        <p className='flex items-center justify-between'>
+                          <span>Tracking Number:</span>
+                          <span className='font-medium text-[var(--color-text-primary)] bg-[var(--color-bg-primary)] px-2 py-1 rounded text-xs'>
+                            {order.trackingNumber.toUpperCase()}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       ) : (
-        <div className='text-center text-[var(--color-text-secondary)] py-8'>
-          No orders found. Start shopping!
+        <div className='text-center py-12'>
+          <div className='text-[var(--color-text-secondary)] mb-4'>
+            No orders found
+          </div>
+          <motion.button
+            onClick={() => router.push("/store")}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className='btn-primary inline-flex items-center px-6 py-3'
+          >
+            <FiShoppingBag className='mr-2 h-5 w-5' />
+            Start Shopping
+          </motion.button>
         </div>
       )}
     </motion.div>

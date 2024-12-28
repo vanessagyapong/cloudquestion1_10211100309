@@ -11,7 +11,7 @@ import { Store, CreateStoreData } from "@/types/store";
 import { Product, CreateProductData, UpdateProductData } from "@/types/product";
 import { WishlistItem } from "@/types/wishlist";
 import { CartItem } from "@/types/cart";
-import { Order } from "@/types/order";
+import { Order, CreateOrderData } from "@/types/order";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://green-flashy-form.glitch.me/api";
@@ -124,30 +124,16 @@ export const storeApi = {
 
 // Orders API
 export const ordersApi = {
-  createOrder: (data: {
-    items: Array<{ productId: string; quantity: number }>;
-    shippingAddress: {
-      street: string;
-      city: string;
-      state: string;
-      country: string;
-      postalCode: string;
-    };
-    paymentMethod: string;
-  }) => axiosInstance.post<{ data: Order }>("/orders", data),
+  createOrder: (data: CreateOrderData) =>
+    axiosInstance.post<{ data: Order }>("/orders", data),
   getMyOrders: () => axiosInstance.get<{ data: Order[] }>("/orders/my-orders"),
   getOrders: () => axiosInstance.get<{ data: Order[] }>("/orders"),
-
   getOrder: (id: string) => axiosInstance.get<{ data: Order }>(`/orders/${id}`),
-
   getSellerOrders: () => axiosInstance.get<{ data: Order[] }>("/orders/seller"),
-
   updateOrderStatus: (orderId: string, status: Order["status"]) =>
     axiosInstance.put<{ data: Order }>(`/orders/${orderId}/status`, { status }),
-
   cancelOrder: (orderId: string) =>
     axiosInstance.put<{ data: Order }>(`/orders/${orderId}/cancel`),
-
   updateShippingInfo: (orderId: string, trackingNumber: string) =>
     axiosInstance.put<{ data: Order }>(`/orders/${orderId}/shipping`, {
       trackingNumber,

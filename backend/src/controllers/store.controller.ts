@@ -81,17 +81,20 @@ export const getStore: AsyncRequestHandler = async (
       .populate({
         path: "items.product",
         select: "name price images description category stock",
+        model: "Product",
       })
       .sort({ createdAt: -1 });
 
     // Filter and enhance orders with additional details
     const filteredOrders = orders.map((order) => {
-      const storeItems = order.items.filter((item) =>
-        productIds.some((id) => id.equals(item.product._id))
-      );
+      // Filter out items where product exists and belongs to the store
+      const storeItems = order.items.filter((item) => {
+        const product = item.product;
+        return product && productIds.some((id) => id.equals(product._id));
+      });
 
       const orderTotal = storeItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+        (sum, item) => sum + (item.price || 0) * item.quantity,
         0
       );
 
@@ -149,23 +152,32 @@ export const getStore: AsyncRequestHandler = async (
       recentOrders: filteredOrders.slice(0, 5),
       productPerformance: productIds.reduce((acc: any, productId) => {
         const productOrders = filteredOrders.filter((order) =>
-          order.items.some((item) => item.product._id.equals(productId))
+          order.items.some(
+            (item) =>
+              item.product &&
+              item.product._id &&
+              item.product._id.equals(productId)
+          )
         );
         const product = products.find((p) => p._id.equals(productId));
         if (product) {
           acc[product.name] = {
             totalOrders: productOrders.length,
             totalQuantity: productOrders.reduce((total, order) => {
-              const item = order.items.find((i) =>
-                i.product._id.equals(productId)
+              const item = order.items.find(
+                (i) =>
+                  i.product && i.product._id && i.product._id.equals(productId)
               );
               return total + (item?.quantity || 0);
             }, 0),
             totalRevenue: productOrders.reduce((total, order) => {
-              const item = order.items.find((i) =>
-                i.product._id.equals(productId)
+              const item = order.items.find(
+                (i) =>
+                  i.product && i.product._id && i.product._id.equals(productId)
               );
-              return total + (item ? item.price * item.quantity : 0);
+              return (
+                total + (item ? (item.price || 0) * (item.quantity || 0) : 0)
+              );
             }, 0),
             inStock: product.stock,
           };

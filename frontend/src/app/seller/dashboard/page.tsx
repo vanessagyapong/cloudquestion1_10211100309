@@ -226,7 +226,7 @@ export default function SellerDashboard() {
                     >
                       <div className='relative aspect-video'>
                         <Image
-                          src={product.images[4]}
+                          src={product.images[0]}
                           alt={product.name}
                           width={400}
                           height={225}

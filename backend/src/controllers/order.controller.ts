@@ -3,6 +3,7 @@ import { AsyncRequestHandler, AuthenticatedRequest } from "../types/express";
 import Order from "../models/order.model";
 import Product from "../models/product.model";
 import Store from "../models/store.model";
+import { Cart } from "../models";
 
 export const createOrder = async (req: Request, res: Response) => {
   try {
@@ -14,8 +15,8 @@ export const createOrder = async (req: Request, res: Response) => {
 
     // Verify stock and get prices
     const itemsWithPrices = await Promise.all(
-      items.map(async (item: { product: string; quantity: number }) => {
-        const product = await Product.findById(item.product);
+      items.map(async (item: { productId: string; quantity: number }) => {
+        const product = await Product.findById(item?.productId);
         if (!product) {
           throw new Error("Product not found");
         }
@@ -23,7 +24,7 @@ export const createOrder = async (req: Request, res: Response) => {
           throw new Error(`Not enough stock for ${product.name}`);
         }
         return {
-          product: item.product,
+          product: item.productId,
           quantity: item.quantity,
           price: product.price,
         };
@@ -33,15 +34,24 @@ export const createOrder = async (req: Request, res: Response) => {
     // Calculate estimated delivery date (7 days from now)
     const estimatedDeliveryDate = new Date();
     estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
-
     // Create order
     const order = await Order.create({
       user: (req as any).user._id,
       items: itemsWithPrices,
-      shippingAddress,
-      paymentMethod,
+      totalAmount: itemsWithPrices.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      ),
+      shippingAddress: {
+        ...shippingAddress,
+        zipCode: shippingAddress.postalCode,
+      },
+      paymentMethod: paymentMethod,
       estimatedDeliveryDate,
       statusHistory: [{ status: "pending", timestamp: new Date() }],
+      trackingNumber:
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15),
     });
 
     // Update stock
@@ -53,6 +63,12 @@ export const createOrder = async (req: Request, res: Response) => {
           await product.save();
         }
       })
+    );
+
+    // remove items from cart
+    await Cart.findOneAndUpdate(
+      { user: (req as any).user._id },
+      { $set: { items: [] } }
     );
 
     res.status(201).json(order);

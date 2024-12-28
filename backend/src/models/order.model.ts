@@ -130,8 +130,28 @@ const orderSchema = new mongoose.Schema(
       default: "pending",
     },
     paymentMethod: {
-      type: String,
-      required: true,
+      type: {
+        type: String,
+        required: true,
+      },
+      details: {
+        name: {
+          type: String,
+          required: true,
+        },
+        number: {
+          type: String,
+          required: true,
+        },
+        expiry: {
+          type: String,
+          required: true,
+        },
+        cvv: {
+          type: String,
+          required: true,
+        },
+      },
     },
     estimatedDeliveryDate: Date,
     actualDeliveryDate: Date,

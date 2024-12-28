@@ -16,6 +16,8 @@ import {
   FiLock,
 } from "react-icons/fi";
 import { toast } from "sonner";
+import { ordersApi } from "@/services/api";
+import { CreateOrderData } from "@/types/order";
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -30,6 +32,7 @@ interface ShippingDetails {
   state: string;
   zipCode: string;
   phone: string;
+  country: string;
 }
 
 interface PaymentDetails {
@@ -46,6 +49,7 @@ const initialShippingDetails: ShippingDetails = {
   state: "",
   zipCode: "",
   phone: "",
+  country: "",
 };
 
 const initialPaymentDetails: PaymentDetails = {
@@ -90,8 +94,40 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     try {
       setLoading(true);
-      // TODO: Implement order creation API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Calculate estimated delivery date (7 days from now)
+      const estimatedDeliveryDate = new Date();
+      estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
+
+      const orderData: CreateOrderData = {
+        items: cartItems.map((item) => ({
+          product: item.product._id,
+          quantity: item.quantity,
+          price: item.price * item.quantity, // Store the actual price paid
+        })),
+        totalAmount: total,
+        shippingAddress: {
+          street: shippingDetails.address,
+          city: shippingDetails.city,
+          state: shippingDetails.state,
+          country: shippingDetails.country,
+          zipCode: shippingDetails.zipCode,
+        },
+        status: "pending",
+        paymentStatus: "pending",
+        paymentMethod: {
+          type: "card",
+          details: {
+            name: paymentDetails.cardHolder,
+            number: paymentDetails.cardNumber.replace(/\s/g, ""),
+            expiry: paymentDetails.expiryDate,
+            cvv: paymentDetails.cvv,
+          },
+        },
+        estimatedDeliveryDate: estimatedDeliveryDate.toISOString(),
+      };
+
+      await ordersApi.createOrder(orderData);
       await clearCart();
       toast.success("Order placed successfully!");
       router.push("/profile");
@@ -225,17 +261,21 @@ export default function CheckoutPage() {
                     animate={fadeIn.animate}
                     exit={fadeIn.exit}
                   >
-                    <h2 className='text-2xl font-semibold text-[var(--color-text-primary)] mb-8 flex items-center gap-3 pb-4 border-b border-[var(--color-border)]'>
-                      <FiMapPin className='h-6 w-6 text-[var(--color-primary)]' />
-                      Shipping Details
+                    <h2 className='text-2xl font-bold text-[var(--color-text-primary)] mb-6'>
+                      Shipping Information
                     </h2>
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                       <div>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
+                        <label
+                          htmlFor='fullName'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
                           Full Name
                         </label>
                         <input
                           type='text'
+                          id='fullName'
+                          name='fullName'
                           value={shippingDetails.fullName}
                           onChange={(e) =>
                             setShippingDetails({
@@ -243,16 +283,22 @@ export default function CheckoutPage() {
                               fullName: e.target.value,
                             })
                           }
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                           required
+                          autoComplete='name'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                         />
                       </div>
                       <div>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
+                        <label
+                          htmlFor='phone'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
                           Phone Number
                         </label>
                         <input
                           type='tel'
+                          id='phone'
+                          name='phone'
                           value={shippingDetails.phone}
                           onChange={(e) =>
                             setShippingDetails({
@@ -260,16 +306,22 @@ export default function CheckoutPage() {
                               phone: e.target.value,
                             })
                           }
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                           required
+                          autoComplete='tel'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                         />
                       </div>
                       <div className='md:col-span-2'>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
-                          Address
+                        <label
+                          htmlFor='address'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
+                          Street Address
                         </label>
                         <input
                           type='text'
+                          id='address'
+                          name='address'
                           value={shippingDetails.address}
                           onChange={(e) =>
                             setShippingDetails({
@@ -277,16 +329,22 @@ export default function CheckoutPage() {
                               address: e.target.value,
                             })
                           }
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                           required
+                          autoComplete='street-address'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                         />
                       </div>
                       <div>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
+                        <label
+                          htmlFor='city'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
                           City
                         </label>
                         <input
                           type='text'
+                          id='city'
+                          name='city'
                           value={shippingDetails.city}
                           onChange={(e) =>
                             setShippingDetails({
@@ -294,16 +352,22 @@ export default function CheckoutPage() {
                               city: e.target.value,
                             })
                           }
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                           required
+                          autoComplete='address-level2'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                         />
                       </div>
                       <div>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
-                          State
+                        <label
+                          htmlFor='state'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
+                          State / Province
                         </label>
                         <input
                           type='text'
+                          id='state'
+                          name='state'
                           value={shippingDetails.state}
                           onChange={(e) =>
                             setShippingDetails({
@@ -311,16 +375,22 @@ export default function CheckoutPage() {
                               state: e.target.value,
                             })
                           }
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                           required
+                          autoComplete='address-level1'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                         />
                       </div>
                       <div>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
-                          ZIP Code
+                        <label
+                          htmlFor='zipCode'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
+                          ZIP / Postal Code
                         </label>
                         <input
                           type='text'
+                          id='zipCode'
+                          name='zipCode'
                           value={shippingDetails.zipCode}
                           onChange={(e) =>
                             setShippingDetails({
@@ -328,17 +398,41 @@ export default function CheckoutPage() {
                               zipCode: e.target.value,
                             })
                           }
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                           required
+                          autoComplete='postal-code'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor='country'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
+                          Country
+                        </label>
+                        <input
+                          type='text'
+                          id='country'
+                          name='country'
+                          value={shippingDetails.country}
+                          onChange={(e) =>
+                            setShippingDetails({
+                              ...shippingDetails,
+                              country: e.target.value,
+                            })
+                          }
+                          required
+                          autoComplete='country-name'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                         />
                       </div>
                     </div>
-                    <div className='mt-8'>
+                    <div className='mt-8 flex justify-end'>
                       <motion.button
                         type='submit'
-                        className='btn-primary w-full py-3 text-lg font-medium shadow-lg shadow-[var(--color-primary)]/20'
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        className='btn-primary px-8 py-2'
                       >
                         Continue to Payment
                       </motion.button>
@@ -355,36 +449,21 @@ export default function CheckoutPage() {
                     animate={fadeIn.animate}
                     exit={fadeIn.exit}
                   >
-                    <h2 className='text-2xl font-semibold text-[var(--color-text-primary)] mb-8 flex items-center gap-3 pb-4 border-b border-[var(--color-border)]'>
-                      <FiCreditCard className='h-6 w-6 text-[var(--color-primary)]' />
-                      Payment Details
+                    <h2 className='text-2xl font-bold text-[var(--color-text-primary)] mb-6'>
+                      Payment Information
                     </h2>
                     <div className='space-y-6'>
                       <div>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
-                          Card Number
-                        </label>
-                        <input
-                          type='text'
-                          value={paymentDetails.cardNumber}
-                          onChange={(e) =>
-                            setPaymentDetails({
-                              ...paymentDetails,
-                              cardNumber: formatCardNumber(e.target.value),
-                            })
-                          }
-                          maxLength={19}
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
-                          placeholder='0000 0000 0000 0000'
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
+                        <label
+                          htmlFor='cardHolder'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
                           Card Holder Name
                         </label>
                         <input
                           type='text'
+                          id='cardHolder'
+                          name='cardHolder'
                           value={paymentDetails.cardHolder}
                           onChange={(e) =>
                             setPaymentDetails({
@@ -392,17 +471,47 @@ export default function CheckoutPage() {
                               cardHolder: e.target.value,
                             })
                           }
-                          className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                           required
+                          autoComplete='cc-name'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor='cardNumber'
+                          className='block text-sm font-medium text-[var(--color-text-primary)]'
+                        >
+                          Card Number
+                        </label>
+                        <input
+                          type='text'
+                          id='cardNumber'
+                          name='cardNumber'
+                          value={paymentDetails.cardNumber}
+                          onChange={(e) =>
+                            setPaymentDetails({
+                              ...paymentDetails,
+                              cardNumber: formatCardNumber(e.target.value),
+                            })
+                          }
+                          required
+                          maxLength={19}
+                          autoComplete='cc-number'
+                          className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                         />
                       </div>
                       <div className='grid grid-cols-2 gap-6'>
                         <div>
-                          <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
-                            Expiry Date
+                          <label
+                            htmlFor='expiryDate'
+                            className='block text-sm font-medium text-[var(--color-text-primary)]'
+                          >
+                            Expiry Date (MM/YY)
                           </label>
                           <input
                             type='text'
+                            id='expiryDate'
+                            name='expiryDate'
                             value={paymentDetails.expiryDate}
                             onChange={(e) =>
                               setPaymentDetails({
@@ -410,49 +519,55 @@ export default function CheckoutPage() {
                                 expiryDate: formatExpiryDate(e.target.value),
                               })
                             }
-                            maxLength={5}
-                            className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
-                            placeholder='MM/YY'
                             required
+                            maxLength={5}
+                            autoComplete='cc-exp'
+                            className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                           />
                         </div>
                         <div>
-                          <label className='block text-sm font-medium text-[var(--color-text-secondary)] mb-2'>
+                          <label
+                            htmlFor='cvv'
+                            className='block text-sm font-medium text-[var(--color-text-primary)]'
+                          >
                             CVV
                           </label>
                           <input
                             type='text'
+                            id='cvv'
+                            name='cvv'
                             value={paymentDetails.cvv}
                             onChange={(e) =>
                               setPaymentDetails({
                                 ...paymentDetails,
                                 cvv: e.target.value
                                   .replace(/\D/g, "")
-                                  .slice(0, 3),
+                                  .slice(0, 4),
                               })
                             }
-                            maxLength={3}
-                            className='w-full px-4 py-3 rounded-lg border border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-20 outline-none transition-all duration-200'
                             required
+                            maxLength={4}
+                            autoComplete='cc-csc'
+                            className='mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] px-4 py-2 text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]'
                           />
                         </div>
                       </div>
                     </div>
-                    <div className='mt-8 flex items-center gap-4'>
+                    <div className='mt-8 flex justify-between'>
                       <motion.button
                         type='button'
                         onClick={() => setStep(1)}
-                        className='btn-secondary flex-1'
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        className='btn-secondary px-8 py-2'
                       >
                         Back
                       </motion.button>
                       <motion.button
                         type='submit'
-                        className='btn-primary flex-1'
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        className='btn-primary px-8 py-2'
                       >
                         Review Order
                       </motion.button>
@@ -550,7 +665,7 @@ export default function CheckoutPage() {
                           src={item.product.images[0]}
                           alt={item.product.name}
                           fill
-                          className='object-cover rounded-lg'
+                          className='object-scale-down rounded-lg'
                         />
                       </div>
                       <div className='flex-1 min-w-0'>

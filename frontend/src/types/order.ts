@@ -1,35 +1,76 @@
-import { Product } from "./product";
-import { User } from "./user";
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "processing"
+  | "packed"
+  | "shipped"
+  | "out_for_delivery"
+  | "delivered"
+  | "cancelled"
+  | "returned"
+  | "refunded";
+export type PaymentStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "refunded";
 
 export interface OrderItem {
-  product: Product;
+  product: string;
   quantity: number;
-  price: number; // Price at the time of purchase
-  _id: string;
+  price: number;
+  _id?: string;
 }
 
 export interface ShippingAddress {
   street: string;
   city: string;
   state: string;
+  zipCode: string;
   country: string;
-  postalCode: string;
+}
+
+export interface PaymentMethod {
+  type: "card";
+  details: {
+    name: string;
+    number: string;
+    expiry: string;
+    cvv: string;
+  };
+}
+
+export interface StatusHistoryItem {
+  status: OrderStatus;
+  timestamp: string;
+  _id?: string;
 }
 
 export interface Order {
   _id: string;
-  user: User;
-  seller: User;
+  user: string;
   items: OrderItem[];
   totalAmount: number;
-  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   shippingAddress: ShippingAddress;
-  paymentStatus: "pending" | "completed" | "failed" | "refunded";
-  paymentMethod: string;
+  status: OrderStatus;
+  statusHistory: StatusHistoryItem[];
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  estimatedDeliveryDate: string;
+  trackingNumber?: string;
   createdAt: string;
   updatedAt: string;
-  trackingNumber?: string;
-  notes?: string;
+}
+
+export interface CreateOrderData {
+  items: OrderItem[];
+  totalAmount: number;
+  shippingAddress: ShippingAddress;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  estimatedDeliveryDate: string;
 }
 
 export interface OrderSummary {
